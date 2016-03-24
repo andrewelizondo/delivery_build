@@ -21,6 +21,7 @@ describe 'delivery_build::default' do
   # Git
   describe package('git') do
     it { should be_installed }
+    it { should be_version '2.7.4' }
   end
 
   # delivery-cli
