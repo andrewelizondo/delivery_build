@@ -1,25 +1,23 @@
-if node['delivery_build']['delivery-cli']['artifact']
-  extension = value_for_platform_family(debian: 'deb', rhel: 'rpm', windows: 'msi')
-  pkg_path = "#{Chef::Config[:file_cache_path]}/delivery-cli.#{extension}"
+#
+# Copyright 2015 Chef Software, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
-  remote_file pkg_path do
-    checksum node['delivery_build']['delivery-cli']['checksum'] if node['delivery_build']['delivery-cli']['checksum']
-    source node['delivery_build']['delivery-cli']['artifact']
-  end
-
-  package 'delivery-cli' do
-    source pkg_path
-    version node['delivery_build']['delivery-cli']['version']
-    provider value_for_platform_family(
-      debian:  Chef::Provider::Package::Dpkg,
-      rhel:    Chef::Provider::Package::Rpm,
-      windows: Chef::Provider::Package::Windows
-    )
-  end
-else
-  chef_ingredient 'delivery-cli' do
-    channel node['delivery_build']['repo_name'].sub(%r{^chef/}, '').to_sym
-    options node['delivery_build']['delivery-cli']['options']
-    action :upgrade
-  end
+chef_ingredient 'delivery-cli' do
+  channel node['delivery_build']['delivery-cli']['channel']
+  version node['delivery_build']['delivery-cli']['version']
+  options node['delivery_build']['delivery-cli']['options']
+  package_source node['delivery_build']['delivery-cli']['source_url'] if node['delivery_build']['delivery-cli']['source_url']
+  action :upgrade if node['delivery_build']['delivery-cli']['version'].eql?(:latest) && node['delivery_build']['delivery-cli']['source_url'].nil?
 end

@@ -13,26 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-gemrc_path = '/root/.gemrc'
 
-if windows?
-  gemrc_path = File.join(ENV['USERPROFILE'], '.gemrc')
-
-  pkg_name = "Chef Development Kit v#{node['delivery_build']['chefdk_version']}"
-  windows_package_url = "https://packages.chef.io/stable/windows/2008r2/chefdk-#{node['delivery_build']['chefdk_version']}-1-x86.msi"
-
-  windows_package pkg_name do
-    source windows_package_url
-    installer_type :msi
-    timeout 1800 # 30 minute timeout (this can be really slow)
-  end
-else
-  chef_ingredient 'chefdk' do
-    channel node['delivery_build']['repo_name'].sub(%r{^chef/}, '').to_sym
-    version node['delivery_build']['chefdk_version']
-    package_source node['delivery_build']['chefdk_package_source']
-    action :upgrade if node['delivery_build']['chefdk_version'].eql?('latest')
-  end
+chef_ingredient 'chefdk' do
+  channel node['delivery_build']['chefdk']['channel']
+  version node['delivery_build']['chefdk']['version']
+  options node['delivery_build']['chefdk']['options']
+  package_source node['delivery_build']['chefdk']['source_url'] if node['delivery_build']['chefdk']['source_url']
+  action :upgrade if node['delivery_build']['chefdk']['version'].eql?(:latest) && node['delivery_build']['chefdk']['source_url'].nil?
 end
 
 # For now, we need to add a gemrc file to get Chef to install gems
@@ -49,6 +36,9 @@ end
 # back later and tweak that if we want.
 #
 # Customizable .gemrc file (Read the attributes file)
+
+gemrc_path = windows? ? File.join(ENV['USERPROFILE'], '.gemrc') : '/root/.gemrc'
+
 file gemrc_path do
   mode '0644'
   content DeliveryHelper::Gemrc.to_yaml(node['delivery_build']['gemrc'])

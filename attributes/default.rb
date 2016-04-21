@@ -16,9 +16,6 @@
 
 include_attribute 'delivery-base'
 
-# The repo that we should pull chefdk and delivery-cli
-default['delivery_build']['repo_name'] = 'chef/stable'
-
 # Directories we need for the builder workspace
 default['delivery_build']['root'] = platform_family == 'windows' ? 'C:/delivery/ws' : '/var/opt/delivery/workspace'
 
@@ -59,38 +56,16 @@ default['delivery_build']['sentry_dsn'] = nil
 # The location of the Delivery API
 default['delivery_build']['api'] = nil
 
-# If set, download the package from the given url.
-default['delivery_build']['delivery-cli']['version'] = nil
 
-# package options for installing delivery-cli
-# example: "--nogpgcheck" if package is unsigned
+default['delivery_build']['delivery-cli']['channel'] = :stable
 default['delivery_build']['delivery-cli']['options'] = nil
+default['delivery_build']['delivery-cli']['version'] = :latest
+default['delivery_build']['delivery-cli']['source_url'] = nil
 
-if platform_family == 'windows'
-  # This sucks mightily, but is necessary until chef-ingedient works on Windows and delivery-cli is properly publishing.
-  # Until both those things are true, these values will need to be updated every time a new build of Windows delivery-cli is uploaded.
-  default['delivery_build']['delivery-cli']['artifact'] = 'https://s3.amazonaws.com/delivery-packages/cli/delivery-cli-0.0.0%2B20151029184247-1-x64.msi'
-  default['delivery_build']['delivery-cli']['checksum'] = '4ff91024745801bc2a0f294a8581a175ebb6c6c7dabddba465ed3d3da52163eb'
-else
-  default['delivery_build']['delivery-cli']['artifact'] = nil
-  default['delivery_build']['delivery-cli']['checksum'] = nil
-end
-
-# ChefDK version
-#
-# Specify the chefdk version you want to install on the build-nodes
-# set it to `latest` to always be in the latest version (:upgrade)
-default['delivery_build']['chefdk_version'] = if platform_family == 'windows'
-                                                # Currently there is no "easy" way to get the latest version
-                                                # of chefdk for windows systems, therefore we will hardcode it
-                                                # until we have a final solution for this.
-                                                '0.9.0'
-                                              else
-                                                'latest'
-                                              end
-
-# set path to local package for chefdk install
-default['delivery_build']['chefdk_package_source'] = nil
+default['delivery_build']['chefdk']['channel'] = :stable
+default['delivery_build']['chefdk']['options'] = nil
+default['delivery_build']['chefdk']['version'] = :latest
+default['delivery_build']['chefdk']['source_url'] = nil
 
 # Add trusted_certs to the build-node chefdk/cacerts.pem via trusted_certs.rb
 # Example:
