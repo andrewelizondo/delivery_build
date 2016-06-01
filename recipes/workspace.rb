@@ -68,9 +68,9 @@ end
 # TK-driven run in the dev setup
 { 'builder_key'  => 'builder_key',
   'delivery_pem' => 'delivery.pem' }.each do |key_name, file_name|
-  data_bag_coords = node['delivery_build']['builder_keys'][key_name]
-  data_bag_content = DeliveryHelper.encrypted_data_bag_item(data_bag_coords['bag'],
-                                                            data_bag_coords['item'])
+  # data_bag_coords = node['delivery_build']['builder_keys'][key_name]
+  # data_bag_content = DeliveryHelper.encrypted_data_bag_item(data_bag_coords['bag'],
+  #                                                           data_bag_coords['item'])
   # TODO: the 'builder_key' should clearly be dependent on the enterprise
   # and so stored at an ent-level workspace dir
   file ::File.join(node['delivery_build']['etc'], file_name) do
@@ -80,7 +80,7 @@ end
     owner node['delivery_build']['build_user'] unless windows?
     group 'root' unless windows?
     mode '0600'
-    content data_bag_content[data_bag_coords['key']]
+    content IO.read('/tmp/private.pem')
   end
 
   file ::File.join(node['delivery_build']['dot_chef'], file_name) do
@@ -90,7 +90,7 @@ end
     owner node['delivery_build']['build_user'] unless windows?
     group 'root' unless windows?
     mode '0600'
-    content data_bag_content[data_bag_coords['key']]
+    content IO.read('/tmp/private.pem')
   end
 end
 
