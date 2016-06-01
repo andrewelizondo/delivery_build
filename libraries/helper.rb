@@ -28,21 +28,21 @@ class DeliveryHelper
     node['delivery_build']['release-channel'].to_sym
   end
 
-  def self.encrypted_data_bag_item(bag, id, secret = nil)
-    dh = DeliveryHelper.new
-    dh.encrypted_data_bag_item(bag, id, secret)
-  end
+  # def self.encrypted_data_bag_item(bag, id, secret = nil)
+  #   dh = DeliveryHelper.new
+  #   dh.encrypted_data_bag_item(bag, id, secret)
+  # end
 
-  def encrypted_data_bag_item(bag, id, secret = nil)
-    Chef::Log.debug "Loading encrypted data bag item #{bag}/#{id}"
+  # def encrypted_data_bag_item(bag, id, secret = nil)
+  #   Chef::Log.debug "Loading encrypted data bag item #{bag}/#{id}"
 
-    if secret.nil? && Chef::Config[:encrypted_data_bag_secret].nil?
-      raise 'Please specify Chef::Config[:encrypted_data_bag_secret]'
-    end
+  #   if secret.nil? && Chef::Config[:encrypted_data_bag_secret].nil?
+  #     raise 'Please specify Chef::Config[:encrypted_data_bag_secret]'
+  #   end
 
-    secret ||= File.read(Chef::Config[:encrypted_data_bag_secret]).strip
-    Chef::EncryptedDataBagItem.load(bag, id, secret)
-  end
+  #   secret ||= File.read(Chef::Config[:encrypted_data_bag_secret]).strip
+  #   Chef::EncryptedDataBagItem.load(bag, id, secret)
+  # end
 
   class Gemrc
     # Returns true if the attribute should be a Gemrc symbol, false otherwise
