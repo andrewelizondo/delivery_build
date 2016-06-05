@@ -80,7 +80,7 @@ end
     owner node['delivery_build']['build_user'] unless windows?
     group 'root' unless windows?
     mode '0600'
-    content IO.read('/tmp/private.pem')
+    content lazy { IO.read('/tmp/private.pem') }
   end
 
   file ::File.join(node['delivery_build']['dot_chef'], file_name) do
@@ -90,7 +90,7 @@ end
     owner node['delivery_build']['build_user'] unless windows?
     group 'root' unless windows?
     mode '0600'
-    content IO.read('/tmp/private.pem')
+    content lazy { IO.read('/tmp/private.pem') }
   end
 end
 
