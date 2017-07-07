@@ -2,18 +2,11 @@
 
 require 'chef'
 require 'chef/config'
-require 'chef/rest'
+require 'chef/server_api'
 require 'chef/client'
 require 'base64'
 require 'uri'
 require 'date'
-<% if node['delivery_build']['sentry_dsn'] -%>
-require 'sentry-raven'
-
-Raven.configure do |config|
-  config.dsn = '<%= node['delivery_build']['sentry_dsn'] %>'
-end
-<% end -%>
 
 module Delivery
   # Helper methods for our build node job runner workflow.
@@ -34,7 +27,7 @@ module Delivery
     #   looking for a `token` key.
     #
     # @return [Hash] authentication headers, suitable for passing into
-    #   a `Chef::REST` call.
+    #   a `Chef::ServerAPI` call.
     def self.builder_auth_headers(job_data)
       if job_token = job_data["token"]
         {"chef-delivery-token" => job_token,
@@ -92,17 +85,24 @@ class Streamy
   end
 end
 
-<% if node['delivery_build']['sentry_dsn'] -%>
-Raven.capture do
-<% end -%>
+def write_profile(workspace_root)
+  cli_env = {
+    'LC_ALL' => 'en_US.UTF-8',
+    'HOME' => workspace_root
+  }
+  cmd = Mixlib::ShellOut.new("/opt/chefdk/bin/chef shell-init sh > #{workspace_root}/.chef-profile", environment: cli_env)
+  cmd.run_command
+end
 
-workspace_root = "<%= node['delivery_build']['root'] %>"
-workspace_bin = "<%= node['delivery_build']['bin'] %>"
+workspace_root = "/var/opt/delivery/workspace"
+workspace_bin =  "/var/opt/delivery/workspace/bin"
 
 Chef::Config.from_file(Chef::Config.platform_specific_path("/etc/chef/client.rb"))
 client = Chef::Client.new
 client.run_ohai
 client.node_name
+
+write_profile(workspace_root)
 
 change_file = File.join(workspace_root, 'change.json')
 raw_json = Base64.decode64(ARGV[0])
@@ -114,7 +114,7 @@ job_data = Chef::JSONCompat.from_json(raw_json)
 
 builder_auth_headers = Delivery::JobHelpers.builder_auth_headers(job_data)
 
-rest = Chef::REST.new(job_data["delivery_api_url"])
+rest = Chef::ServerAPI.new(job_data["delivery_api_url"])
 path = File.join(job_data['enterprise'],
                  'orgs', job_data['organization'],
                  'projects', job_data['project'],
@@ -130,12 +130,18 @@ else
   "delivery job #{job_data['stage']} #{job_data['phase']} --server #{server.host} --user builder --ent #{job_data['enterprise']} --org #{job_data['organization']} --project #{job_data['project']} --for #{job_data['pipeline']} --change-id #{job_data['change_id']} --shasum #{job_data['sha']} --git-url #{job_data['git_url']}"
 end
 
+command_line += " --fips --fips-git-port #{job_data['fips_git_port']}" if job_data['fips'] == "true"
+
+# placed on disk by install-runner if the user needs a custom cert chain
+custom_cert_filepath = "/var/opt/delivery/workspace/etc/custom_certificate_chain.crt"
+command_line += " --fips-custom-cert-filename #{custom_cert_filepath}" if File.exist?(custom_cert_filepath)
+
 https_proxy = Chef::Config[:https_proxy] || ENV['HTTPS_PROXY'] || ENV['https_proxy']
 http_proxy = Chef::Config[:http_proxy] || ENV['HTTP_PROXY'] || ENV['http_proxy']
 no_proxy = Chef::Config[:no_proxy] || ENV['NO_PROXY'] || ENV['no_proxy']
 
 cli_env = {
-  'PATH' => ['<%=DeliveryBuild::PathHelper.omnibus_chefdk_paths%>', ENV['PATH']].join(File::PATH_SEPARATOR),
+  'PATH' => ['/opt/chefdk/bin:/opt/chefdk/embedded/bin', ENV['PATH']].join(File::PATH_SEPARATOR),
   'LC_ALL' => 'en_US.UTF-8',
   'GIT_SSH' => File.join(workspace_bin, 'git_ssh'),
   'HOME' => workspace_root,
@@ -145,14 +151,17 @@ cli_env['https_proxy'] = https_proxy if https_proxy && !https_proxy.strip.empty?
 cli_env['http_proxy'] = http_proxy if http_proxy && !http_proxy.strip.empty?
 cli_env['no_proxy'] = no_proxy if no_proxy && !no_proxy.strip.empty?
 
-cmd = Mixlib::ShellOut.new("#{command_line} --no-spinner", :environment => cli_env)
+cmd = Mixlib::ShellOut.new(". #{workspace_root}/.chef-profile && #{command_line} --no-spinner", environment: cli_env)
 
 start_datetime = DateTime.now
 
 streamy << "Starting job on builder #{client.node_name} at #{start_datetime.iso8601}.\nCommand: #{command_line}\n"
-## This we will want to be configurable. but for now make it big and
-## and rely on pushy to timeout.
-cmd.timeout = 6600
+
+cmd.timeout = job_data['timeout'] || 13300
+if job_data['dispatch_version'] == 'v2'
+  cmd.timeout = job_data['timeout'] || Float::INFINITY
+end
+
 cmd.log_level = :error
 cmd.live_stream = streamy
 cmd.cwd = workspace_root
@@ -223,6 +232,3 @@ else
     builder_auth_headers
   )
 end
-<% if node['delivery_build']['sentry_dsn'] -%>
-end
-<% end -%>
